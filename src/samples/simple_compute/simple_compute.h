@@ -20,6 +20,7 @@ public:
   inline VkInstance   GetVkInstance() const override { return m_instance; }
   void InitVulkan(const char** a_instanceExtensions, uint32_t a_instanceExtensionsCount, uint32_t a_deviceId) override;
 
+  void InitPipelines(float* data, float* res);
   void Execute() override;
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -64,7 +65,8 @@ private:
   std::shared_ptr<vk_utils::DescriptorMaker> m_pBindings = nullptr;
 
   uint32_t m_length  = 16u;
-  
+  float* m_res_out;
+
   VkPhysicalDeviceFeatures m_enabledDeviceFeatures = {};
   std::vector<const char*> m_deviceExtensions      = {};
   std::vector<const char*> m_instanceExtensions    = {};
@@ -79,14 +81,14 @@ private:
   VkPipeline m_pipeline;
   VkPipelineLayout m_layout;
 
-  VkBuffer m_A, m_B, m_sum;
+  VkBuffer m_A, m_res;
  
   void CreateInstance();
   void CreateDevice(uint32_t a_deviceId);
 
   void BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, VkPipeline a_pipeline);
 
-  void SetupSimplePipeline();
+  void SetupSimplePipeline(float* data);
   void CreateComputePipeline();
   void CleanupPipeline();
 
