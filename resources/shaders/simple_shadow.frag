@@ -36,7 +36,10 @@ void main()
   vec4 lightColor1 = mix(dark_violet, chartreuse, abs(sin(Params.time)));
   vec4 lightColor2 = vec4(1.0f, 1.0f, 1.0f, 1.0f);
    
-  vec3 lightDir   = normalize(Params.lightPos - surf.wPos);
-  vec4 lightColor = max(dot(surf.wNorm, lightDir), 0.0f) * lightColor1;
+  vec3 rayDir   = normalize(-Params.lightPos + surf.wPos);
+  vec3 lightDir = normalize(Params.lightDir);
+  
+  vec4 lightColor = lightColor1 * clamp((dot(lightDir, rayDir) - Params.outerAngleCos) / (Params.innerAngleCos - Params.outerAngleCos), 0., 1.);
+
   out_fragColor   = (lightColor*shadow + vec4(0.1f)) * vec4(Params.baseColor, 1.0f);
 }

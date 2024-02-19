@@ -115,13 +115,18 @@ private:
       radius          = 5.0f;
       lightTargetDist = 20.0f;
       usePerspectiveM = true;
+
+      innerAngle = 50.0f;
+      outerAngle = 60.0f;
     }
 
     float  radius;           ///!< ignored when usePerspectiveM == true 
     float  lightTargetDist;  ///!< identify depth range
     Camera cam;              ///!< user control for light to later get light worldViewProj matrix
     bool   usePerspectiveM;  ///!< use perspective matrix if true and ortographics otherwise
-  
+    float innerAngle;
+    float outerAngle;
+
   } m_light;
  
   void DrawFrameSimple(bool draw_gui);

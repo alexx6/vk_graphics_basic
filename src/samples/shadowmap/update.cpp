@@ -44,7 +44,10 @@ void SimpleShadowmapRender::UpdateUniformBuffer(float a_time)
   m_uniforms.lightMatrix = m_lightMatrix;
   m_uniforms.lightPos    = m_light.cam.pos; //LiteMath::float3(sinf(a_time), 1.0f, cosf(a_time));
   m_uniforms.time        = a_time;
-
+  m_uniforms.innerAngleCos = cosf(DEG_TO_RAD * m_light.innerAngle);
+  m_uniforms.outerAngleCos = cosf(DEG_TO_RAD * m_light.outerAngle);
+  m_uniforms.lightDir      = m_light.cam.forward();
+  
   memcpy(m_uboMappedMem, &m_uniforms, sizeof(m_uniforms));
 }
 
@@ -56,8 +59,8 @@ void SimpleShadowmapRender::ProcessInput(const AppInput &input)
   if(input.keyReleased[GLFW_KEY_Q])
     m_input.drawFSQuad = !m_input.drawFSQuad;
 
-  if(input.keyReleased[GLFW_KEY_P])
-    m_light.usePerspectiveM = !m_light.usePerspectiveM;
+  //if(input.keyReleased[GLFW_KEY_P])
+  //  m_light.usePerspectiveM = !m_light.usePerspectiveM;
 
   // recreate pipeline to reload shaders
   if(input.keyPressed[GLFW_KEY_B])
