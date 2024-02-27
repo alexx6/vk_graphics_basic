@@ -47,6 +47,7 @@ private:
   etna::GlobalContext* m_context;
   etna::Image mainViewDepth;
   etna::Image shadowMap;
+  etna::Image vsm;
   etna::Sampler defaultSampler;
   etna::Buffer constants;
 
@@ -77,6 +78,8 @@ private:
 
   etna::GraphicsPipeline m_basicForwardPipeline {};
   etna::GraphicsPipeline m_shadowPipeline {};
+  etna::GraphicsPipeline m_createvsmPipeline{};
+  etna::GraphicsPipeline m_usevsmPipeline{};
 
   std::shared_ptr<vk_utils::DescriptorMaker> m_pBindings = nullptr;
   
@@ -127,6 +130,8 @@ private:
     bool   usePerspectiveM;  ///!< use perspective matrix if true and ortographics otherwise
   
   } m_light;
+
+  bool m_enableVsm = false;
  
   void DrawFrameSimple(bool draw_gui);
 

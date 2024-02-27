@@ -31,6 +31,13 @@ void SimpleShadowmapRender::AllocateResources()
     .imageUsage = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled
   });
 
+  vsm = m_context->createImage(etna::Image::CreateInfo{
+    .extent     = vk::Extent3D{ 2048, 2048, 1 },
+    .name       = "vsm",
+    .format     = vk::Format::eR16G16Unorm,
+    .imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled 
+  });
+
   defaultSampler = etna::Sampler(etna::Sampler::CreateInfo{.name = "default_sampler"});
   constants = m_context->createBuffer(etna::Buffer::CreateInfo
   {
@@ -62,6 +69,7 @@ void SimpleShadowmapRender::LoadScene(const char* path, bool transpose_inst_matr
 void SimpleShadowmapRender::DeallocateResources()
 {
   mainViewDepth.reset(); // TODO: Make an etna method to reset all the resources
+  vsm.reset();
   shadowMap.reset();
   m_swapchain.Cleanup();
   vkDestroySurfaceKHR(GetVkInstance(), m_surface, nullptr);  
@@ -99,6 +107,11 @@ void SimpleShadowmapRender::loadShaders()
   etna::create_program("simple_material",
     {VK_GRAPHICS_BASIC_ROOT"/resources/shaders/simple_shadow.frag.spv", VK_GRAPHICS_BASIC_ROOT"/resources/shaders/simple.vert.spv"});
   etna::create_program("simple_shadow", {VK_GRAPHICS_BASIC_ROOT"/resources/shaders/simple.vert.spv"});
+
+  etna::create_program("create_vsm", 
+      { VK_GRAPHICS_BASIC_ROOT "/resources/shaders/simple.vert.spv", VK_GRAPHICS_BASIC_ROOT "/resources/shaders/create_vsm.frag.spv" });
+  etna::create_program("use_vsm", 
+      { VK_GRAPHICS_BASIC_ROOT "/resources/shaders/simple.vert.spv", VK_GRAPHICS_BASIC_ROOT "/resources/shaders/use_vsm.frag.spv" });
 }
 
 void SimpleShadowmapRender::SetupSimplePipeline()
@@ -139,6 +152,26 @@ void SimpleShadowmapRender::SetupSimplePipeline()
         {
           .depthAttachmentFormat = vk::Format::eD16Unorm
         }
+    });
+
+  m_createvsmPipeline = pipelineManager.createGraphicsPipeline("create_vsm",
+    { 
+      .vertexShaderInput    = sceneVertexInputDesc,
+      .fragmentShaderOutput = 
+      {
+        .colorAttachmentFormats = { vk::Format::eR16G16Unorm },
+        .depthAttachmentFormat  = vk::Format::eD16Unorm
+      } 
+    });
+
+   m_usevsmPipeline = pipelineManager.createGraphicsPipeline("use_vsm",
+    { 
+      .vertexShaderInput    = sceneVertexInputDesc,
+      .fragmentShaderOutput = 
+      {
+        .colorAttachmentFormats = { static_cast<vk::Format>(m_swapchain.GetFormat()) },
+        .depthAttachmentFormat  = vk::Format::eD32Sfloat
+       } 
     });
 }
 
@@ -185,35 +218,59 @@ void SimpleShadowmapRender::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, 
 
   VK_CHECK_RESULT(vkBeginCommandBuffer(a_cmdBuff, &beginInfo));
 
-  //// draw scene to shadowmap
-  //
+  if (m_enableVsm) 
   {
-    etna::RenderTargetState renderTargets(a_cmdBuff, {2048, 2048}, {}, shadowMap);
-
-    vkCmdBindPipeline(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipeline.getVkPipeline());
-    DrawSceneCmd(a_cmdBuff, m_lightMatrix, m_shadowPipeline.getVkPipelineLayout());
-  }
-
-  //// draw final scene to screen
-  //
-  {
-    auto simpleMaterialInfo = etna::get_shader_program("simple_material");
-
-    auto set = etna::create_descriptor_set(simpleMaterialInfo.getDescriptorLayoutId(0), a_cmdBuff,
     {
-      etna::Binding {0, constants.genBinding()},
-      etna::Binding {1, shadowMap.genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
-    });
+      etna::RenderTargetState renderTargets(a_cmdBuff, { 2048, 2048 }, { { vsm.get(), vsm.getView({}) } }, shadowMap);
 
-    VkDescriptorSet vkSet = set.getVkSet();
+      vkCmdBindPipeline(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, m_createvsmPipeline.getVkPipeline());
+      DrawSceneCmd(a_cmdBuff, m_lightMatrix, m_createvsmPipeline.getVkPipelineLayout());
+    }
 
-    etna::RenderTargetState renderTargets(a_cmdBuff, {m_width, m_height}, {{a_targetImage, a_targetImageView}}, mainViewDepth);
+    //// draw final scene to screen
+    
+    {
+      auto simpleMaterialInfo = etna::get_shader_program("use_vsm");
 
-    vkCmdBindPipeline(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, m_basicForwardPipeline.getVkPipeline());
-    vkCmdBindDescriptorSets(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
-      m_basicForwardPipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, VK_NULL_HANDLE);
+      auto set = etna::create_descriptor_set(simpleMaterialInfo.getDescriptorLayoutId(0), a_cmdBuff, { etna::Binding{ 0, constants.genBinding() }, etna::Binding{ 1, vsm.genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal) } });
 
-    DrawSceneCmd(a_cmdBuff, m_worldViewProj, m_basicForwardPipeline.getVkPipelineLayout());
+      VkDescriptorSet vkSet = set.getVkSet();
+
+      etna::RenderTargetState renderTargets(a_cmdBuff, { m_width, m_height }, { { a_targetImage, a_targetImageView } }, mainViewDepth);
+
+      vkCmdBindPipeline(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, m_usevsmPipeline.getVkPipeline());
+      vkCmdBindDescriptorSets(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, m_usevsmPipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, VK_NULL_HANDLE);
+
+      DrawSceneCmd(a_cmdBuff, m_worldViewProj, m_usevsmPipeline.getVkPipelineLayout());
+    }
+  }
+  else
+  {
+    //// draw scene to shadowmap
+    //
+    {
+      etna::RenderTargetState renderTargets(a_cmdBuff, { 2048, 2048 }, {}, shadowMap);
+
+      vkCmdBindPipeline(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipeline.getVkPipeline());
+      DrawSceneCmd(a_cmdBuff, m_lightMatrix, m_shadowPipeline.getVkPipelineLayout());
+    }
+
+    //// draw final scene to screen
+    //
+    {
+      auto simpleMaterialInfo = etna::get_shader_program("simple_material");
+
+      auto set = etna::create_descriptor_set(simpleMaterialInfo.getDescriptorLayoutId(0), a_cmdBuff, { etna::Binding{ 0, constants.genBinding() }, etna::Binding{ 1, shadowMap.genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal) } });
+
+      VkDescriptorSet vkSet = set.getVkSet();
+
+      etna::RenderTargetState renderTargets(a_cmdBuff, {m_width, m_height}, {{a_targetImage, a_targetImageView}}, mainViewDepth);
+
+      vkCmdBindPipeline(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, m_basicForwardPipeline.getVkPipeline());
+      vkCmdBindDescriptorSets(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, m_basicForwardPipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, VK_NULL_HANDLE);
+
+      DrawSceneCmd(a_cmdBuff, m_worldViewProj, m_basicForwardPipeline.getVkPipelineLayout());
+    }
   }
 
   if(m_input.drawFSQuad)
