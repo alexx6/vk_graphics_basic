@@ -25,14 +25,16 @@ void main()
 {
   const vec4 posLightClipSpace = Params.lightMatrix*vec4(surf.wPos, 1.0f); // 
   const vec3 posLightSpaceNDC  = posLightClipSpace.xyz/posLightClipSpace.w;    // for orto matrix, we don't need perspective division, you can remove it if you want; this is general case;
-  const vec2 shadowTexCoord    = posLightSpaceNDC.xy*0.5f + vec2(0.5f, 0.5f);  // just shift coords from [-1,1] to [0,1]               
+  const vec2 shadowTexCoord    = posLightSpaceNDC.xy*0.5f + vec2(0.5, 0.5);  // just shift coords from [-1,1] to [0,1]               
   const bool  outOfView = (shadowTexCoord.x < 0.0001f || shadowTexCoord.x > 0.9999f || shadowTexCoord.y < 0.0091f || shadowTexCoord.y > 0.9999f);
   
+  vec4 clr = vec4(Params.baseColor, 1.0f);
   vec2	vsm  = textureLod(shadowMap, shadowTexCoord, 1).xy;
   float mu = vsm.x;
   float s2 = vsm.y - mu * mu;
-  float pmax = s2 / (s2 + (posLightClipSpace.z/posLightClipSpace.w - mu) * (posLightClipSpace.z/posLightClipSpace.w - mu));
+  float pmax = s2 / (s2 + (posLightSpaceNDC.z - mu) * (posLightSpaceNDC.z - mu));
 
-
-  out_fragColor   = vec4(Params.baseColor, 1.0f) * vec4(vec3(pmax), 1.0);
+  out_fragColor = clr;
+  if (posLightSpaceNDC.z >= vsm.x)
+	out_fragColor   =  vec4(vec3(pmax), 1.0) * clr;
 }
