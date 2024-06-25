@@ -10,7 +10,9 @@ void SimpleShadowmapRender::SetupGUIElements()
   {
 //    ImGui::ShowDemoWindow();
     ImGui::Begin("Simple render settings");
-
+    ImGui::Checkbox("Enable tonemapping", &m_tmEnabled);
+    ImGui::SameLine();
+    ImGui::SliderFloat("Brightness", &m_brightness, 0.f, 5.f);
     ImGui::ColorEdit3("Meshes base color", m_uniforms.baseColor.M, ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs);
     ImGui::SliderFloat3("Light source position", m_uniforms.lightPos.M, -10.f, 10.f);
 
