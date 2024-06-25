@@ -49,6 +49,8 @@ private:
   etna::Image shadowMap;
   etna::Sampler defaultSampler;
   etna::Buffer constants;
+  etna::Image mainView;
+  bool ssaa;
 
   VkCommandPool    m_commandPool    = VK_NULL_HANDLE;
 
