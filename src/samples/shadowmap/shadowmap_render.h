@@ -48,6 +48,7 @@ private:
   etna::Image mainViewDepth;
   etna::Image shadowMap;
   etna::Image vsm;
+  etna::Image vsm_small;
   etna::Sampler defaultSampler;
   etna::Buffer constants;
 
