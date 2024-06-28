@@ -35,14 +35,14 @@ void SimpleShadowmapRender::AllocateResources()
     .extent     = vk::Extent3D{ 2048, 2048, 1 },
     .name       = "vsm",
     .format     = vk::Format::eR32G32B32A32Sfloat,
-    .imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferSrc
+    .imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc
   });
 
   vsm_small = m_context->createImage(etna::Image::CreateInfo{
     .extent     = vk::Extent3D{ 1024, 1024, 1 },
     .name       = "vsm_small",
     .format     = vk::Format::eR32G32B32A32Sfloat,
-    .imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst
+    .imageUsage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc
   });
 
   defaultSampler = etna::Sampler(etna::Sampler::CreateInfo{.name = "default_sampler"});
@@ -246,12 +246,12 @@ void SimpleShadowmapRender::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, 
                                            .mipLevel = 0,
                                            .baseArrayLayer = 0,
                                            .layerCount = 1},
-                       .srcOffsets = { { 0, 0, 0 }, { 2048, 2048, 0 } },
+                       .srcOffsets = { { 0, 0, 0 }, { 2048, 2048, 1 } },
                        .dstSubresource = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                                            .mipLevel = 0,
                                            .baseArrayLayer = 0,
                                            .layerCount = 1},
-                       .dstOffsets = { { 0, 0, 0 }, { 1024, 1024, 0 } }};
+                       .dstOffsets = { { 0, 0, 0 }, { 1024, 1024, 1 } }};
       vkCmdBlitImage(a_cmdBuff, vsm.get(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vsm_small.get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
     }
     {
@@ -266,12 +266,12 @@ void SimpleShadowmapRender::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, 
                                            .mipLevel = 0,
                                            .baseArrayLayer = 0,
                                            .layerCount = 1},
-                       .srcOffsets = { { 0, 0, 0 }, { 1024, 1024, 0 } },
+                       .srcOffsets = { { 0, 0, 0 }, { 1024, 1024, 1 } },
                        .dstSubresource = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                                            .mipLevel = 0,
                                            .baseArrayLayer = 0,
                                            .layerCount = 1},
-                       .dstOffsets = { { 0, 0, 0 }, { 2048, 2048, 0 }}};
+                       .dstOffsets = { { 0, 0, 0 }, { 2048, 2048, 1 }}};
       vkCmdBlitImage(a_cmdBuff, vsm_small.get(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vsm.get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
     }
     //// draw final scene to screen
